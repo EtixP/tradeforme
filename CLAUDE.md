@@ -36,35 +36,45 @@ The project must remain intellectually honest: the edge may not exist. If backte
 
 ## Important Design Principle
 
-The LLM must **not** directly control money.
+ML/LLM components are not allowed to directly place orders. **Order submission is always the output of a short, auditable deterministic function** whose inputs include any ML/LLM-derived features. This is how serious quant funds actually operate — black-box decisions are unfixable when they go wrong; you can only turn them off.
 
-The LLM is allowed to extract and classify information from disclosures. Deterministic code must make final trading and risk decisions.
+ML/LLM IS allowed to do the heavy lifting upstream:
+
+- **Extraction**: LLM pulls structured fields and qualitative attributes from disclosure text.
+- **Feature enrichment**: LLM scores attributes that regex can't capture (counterparty type, contract language strength, hedging caveats).
+- **Filtering / probability**: ML model (boosted trees on engineered features) predicts P(signal works) given current market state.
+- **Position sizing**: ML output scales position size within hard caps.
 
 Use this separation:
 
 ```text
 Disclosure text
     ↓
-LLM / parser extracts structured event features
+LLM extracts structured fields + qualitative features
     ↓
-Validation layer checks numbers and required fields
+Deterministic parser cross-checks numeric fields (block on mismatch)
     ↓
-Strategy layer generates candidate signal
+Feature store combines extracted, market, and regime features
     ↓
-Risk engine approves or rejects
+ML filter outputs P(signal works) — optional, falls back to rule-only
+    ↓
+Deterministic strategy layer applies hard rules → candidate signal
+    ↓
+Risk engine approves or rejects with reason codes
     ↓
 Broker execution layer submits/cancels orders
     ↓
-Logger records everything
+Logger records every input, intermediate value, and decision
 ```
 
-Never build:
+Two patterns we never build:
 
 ```text
-LLM reads headline → LLM says buy → system buys
+LLM reads headline → LLM says buy → system buys     # unsafe, unauditable
+ML model outputs trade → system trades              # same problem, ML-shaped
 ```
 
-That is unsafe, impossible to backtest rigorously, and vulnerable to hallucination.
+The decision function is always deterministic, short, and inspectable. ML lives in the layers feeding it.
 
 ---
 
@@ -314,8 +324,18 @@ Do not allow the LLM to invent missing values.
 
 Prompting principle:
 
-- Ask the LLM to extract, not to recommend.
-- The model may classify direction, but final trading logic must ignore direct “buy/sell” recommendations.
+- Ask the LLM to extract and to score qualitative features — never to recommend a trade.
+- The model may classify direction, but final trading logic must ignore direct "buy/sell" recommendations.
+
+Beyond raw extraction, the LLM is also responsible for **qualitative feature enrichment** that downstream ML and rules can consume:
+
+- counterparty_type ("government" | "large_corp" | "sme" | "unknown")
+- contract_language_strength (0.0–1.0; "확정" is strong, "조건부" or hedging caveats are weak)
+- counterparty_recurrence (one-shot vs repeat customer language)
+- strategic_vs_routine (qualitative score)
+- red_flags_qualitative (list of strings)
+
+These features feed into the M5b ML filter, not into the order decision directly.
 
 ---
 
@@ -1002,6 +1022,36 @@ Acceptance criteria:
 - Converts validated extraction into candidate signal.
 - Risk engine approves/rejects with reason codes.
 - Unit tests cover common approval and rejection cases.
+
+### Milestone 5b — ML-enriched signal filter
+
+Goal:
+
+Add an ML layer between candidate-signal generation (M5) and the risk engine. The ML layer DOES NOT decide whether to trade. It outputs a probability or score that becomes one input to the deterministic strategy rule.
+
+Sub-steps:
+
+1. **Data**: backfill 24+ months of disclosures and parsed extractions. Below ~5000 events, anything ML finds is statistically indistinguishable from noise — there is no point training before then.
+2. **LLM feature enrichment**: structured-output prompts that score qualitative attributes regex cannot capture — counterparty type (government / large corp / SME / unknown), contract language strength ("확정" vs "조건부"), hedging caveats, repeat-customer signal.
+3. **Engineered features**: market regime features (recent KOSPI volatility, sector momentum, disclosure flow rate) computed from existing price/disclosure data — no new dependencies.
+4. **Filter model**: train a gradient-boosted tree (XGBoost / LightGBM / sklearn GBT) to predict P(T+5 return > cost) given the features. Inputs: ratio bucket, counterparty type, regime features, etc. Output: a probability.
+5. **Walk-forward validation**: split data into N rolling windows. Tune thresholds on window K only from windows 1..K-1. Discard any "edge" that doesn't replicate across at least 5 windows.
+6. **Deterministic decision stays unchanged**: `if (rule passes) AND (P_filter > P_threshold) AND (risk checks pass) → emit order`. The filter only narrows what passes, never expands.
+
+Acceptance criteria:
+
+- 5000+ events in the training dataset.
+- Walk-forward validation report (CSV of OOS performance per window).
+- Filter trained, persisted, loaded by the strategy layer at evaluation time.
+- Strategy layer falls back to rule-only mode if the filter file is missing.
+- Tests cover: feature engineering correctness, filter output shape, fallback behavior, rule-overrides-filter behavior.
+- No change to risk engine or broker layer — the filter sits upstream.
+
+Non-goals for this milestone:
+
+- Reinforcement learning, neural nets, transformers — small data; gradient-boosted trees are the right tool.
+- ML in the decision layer itself.
+- Online learning.
 
 ### Milestone 6 — Paper broker
 
