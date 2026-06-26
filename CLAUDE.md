@@ -1143,21 +1143,32 @@ The system is designed to test whether selected disclosure events, such as major
 
 ## Immediate Next Step for Claude Code
 
-Start with Milestone 1.
+Milestones M1–M5b and the M6/M7 paper-broker scaffolding are complete as of 2026-06-26.
+See [RESEARCH_FINDINGS.md](RESEARCH_FINDINGS.md) for the consolidated answer and
+[NEXT_STEPS.pdf](NEXT_STEPS.pdf) for the running action log.
 
-Create the repository skeleton with:
+Milestone status:
 
-- `src/kdtb/`
-- configuration loader
-- Pydantic schemas for disclosure, extraction, signal, order, and position
-- SQLite database helper
-- basic logging setup
-- placeholder DART client
-- placeholder strategy and risk engine
-- pytest tests proving config/schema/risk basics work
+- **M1 Local skeleton** — done
+- **M2 DART ingestion** — done (1.12M disclosures, 4.5 years)
+- **M3 Deterministic extraction** — done (96.6% success on supply contracts);
+  LLM client + prompts + validator scaffolded but unused (no API key consumed)
+- **M4 Historical event study + cost model** — done across 7 categories
+- **M5 Strategy engine** — done (v2: KOSPI-only, skip-gov)
+- **M5b ML-enriched filter** — NOT done; per Loop-10/12 findings, no
+  upstream feature would rescue a strategy with realistic mean +0.16%
+- **M5b risk-engine blacklist** — done (shareholder_change, 60-day lookback)
+- **M6 Broker integration** — not done; needs KIS credentials
+- **M7 Paper trading** — `HistoricalPaperBroker` scaffolded; live paper
+  loop not wired
+- **M8 Live tiny mode** — not done; gated by M6 + a strategy that actually
+  has edge
+- **M9 Dashboard** — not done
 
-Do not implement live broker order placement yet.
-Do not call any real LLM yet.
-Do not add unnecessary features.
+If pursuing further work, the three productive directions (in increasing
+effort/uncertainty) are documented in [RESEARCH_FINDINGS.md](RESEARCH_FINDINGS.md):
+sub-segment buyback by liquidity, test untested event types (earnings,
+M&A), or build a faster-than-T+1 execution path (which is HFT-adjacent
+and excluded by the non-goals above).
 
 Keep the system boring, testable, and hard to accidentally misuse.
