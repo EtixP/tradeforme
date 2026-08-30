@@ -1,4 +1,15 @@
-# CLAUDE.md
+# Design Specification
+
+This is the original design specification I wrote before building anything: the
+project's intent, the strategy hypotheses, the layering rules, and the milestone
+definitions. It is kept as written so the design can be read against what the
+research actually found.
+
+It is a plan, not a description of the finished repo. The system deliberately
+stopped short of broker integration and live execution, because the research
+found no tradable edge to execute on. For what was built and what the data
+showed, see [README.md](README.md) and
+[RESEARCH_FINDINGS.md](RESEARCH_FINDINGS.md).
 
 ## Project Title
 
@@ -556,7 +567,7 @@ Use Streamlit for a quick dashboard.
 ```text
 korean-disclosure-trading-bot/
 │
-├── CLAUDE.md
+├── DESIGN.md
 ├── README.md
 ├── pyproject.toml
 ├── requirements.txt
@@ -1115,18 +1126,6 @@ A strong negative result is still valuable if it shows:
 
 ---
 
-## README Project Description
-
-Use this description in README later:
-
-```text
-This project is an event-driven Korean equity trading research system. It monitors official corporate disclosures, uses an LLM to extract structured event information, evaluates candidate trades with deterministic strategy and risk rules, and supports backtesting, paper trading, and tiny live execution through a brokerage API.
-
-The system is designed to test whether selected disclosure events, such as major supply contracts, produce delayed short-term price reactions after realistic Korean market transaction costs. The LLM is used only for information extraction; all trading and risk decisions are handled by deterministic code.
-```
-
----
-
 ## Warnings
 
 - This is experimental software.
@@ -1138,37 +1137,3 @@ The system is designed to test whether selected disclosure events, such as major
 - Live orders can execute at bad prices.
 - Real-money mode must remain tiny until the system has substantial evidence.
 - The goal is rigorous research and engineering first, profit second.
-
----
-
-## Immediate Next Step for Claude Code
-
-Milestones M1–M5b and the M6/M7 paper-broker scaffolding are complete as of 2026-06-26.
-See [RESEARCH_FINDINGS.md](RESEARCH_FINDINGS.md) for the consolidated answer and
-[NEXT_STEPS.pdf](NEXT_STEPS.pdf) for the running action log.
-
-Milestone status:
-
-- **M1 Local skeleton** — done
-- **M2 DART ingestion** — done (1.12M disclosures, 4.5 years)
-- **M3 Deterministic extraction** — done (96.6% success on supply contracts);
-  LLM client + prompts + validator scaffolded but unused (no API key consumed)
-- **M4 Historical event study + cost model** — done across 7 categories
-- **M5 Strategy engine** — done (v2: KOSPI-only, skip-gov)
-- **M5b ML-enriched filter** — NOT done; per Loop-10/12 findings, no
-  upstream feature would rescue a strategy with realistic mean +0.16%
-- **M5b risk-engine blacklist** — done (shareholder_change, 60-day lookback)
-- **M6 Broker integration** — not done; needs KIS credentials
-- **M7 Paper trading** — `HistoricalPaperBroker` scaffolded; live paper
-  loop not wired
-- **M8 Live tiny mode** — not done; gated by M6 + a strategy that actually
-  has edge
-- **M9 Dashboard** — not done
-
-If pursuing further work, the three productive directions (in increasing
-effort/uncertainty) are documented in [RESEARCH_FINDINGS.md](RESEARCH_FINDINGS.md):
-sub-segment buyback by liquidity, test untested event types (earnings,
-M&A), or build a faster-than-T+1 execution path (which is HFT-adjacent
-and excluded by the non-goals above).
-
-Keep the system boring, testable, and hard to accidentally misuse.
