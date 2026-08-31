@@ -1,0 +1,919 @@
+# ROADMAP.md
+
+> **Purpose:** This file defines the long-term direction of the project and the ordered milestones used to reach it.
+>
+> It is a roadmap, **not a request to implement everything at once**.
+>
+> Future Codex sessions must work on exactly one active milestone unless the user explicitly changes scope.
+
+## Project destination
+
+Build a production-like **event-driven Korean equity research and paper-trading platform** that:
+
+1. ingests and normalizes Korean corporate disclosures;
+2. identifies which events are economically significant;
+3. places each event in historical context using defensible research methods;
+4. supports frozen, prospective experiments instead of endlessly retuning historical data;
+5. collects live market data needed to test execution assumptions;
+6. can simulate realistic paper orders and risk constraints;
+7. remains useful even when the correct trading decision is **NO TRADE**.
+
+The project should signal both:
+
+- **quantitative research discipline**, and
+- **software / systems engineering competence**.
+
+The goal is **not** to force the historical data to produce profitable alpha.
+
+---
+
+# Milestone operating model
+
+## Allowed milestone statuses
+
+- `NOT STARTED`
+- `IN PROGRESS`
+- `AWAITING VERIFICATION`
+- `VERIFIED`
+- `BLOCKED`
+
+A builder session may move a milestone from `NOT STARTED` → `IN PROGRESS` → `AWAITING VERIFICATION`.
+
+A fresh verifier session should independently review the implementation before changing it to `VERIFIED`.
+
+`BLOCKED` is a valid outcome when a foundational assumption or required data source cannot be resolved safely.
+
+## Definition of done
+
+A milestone is not done because the code runs.
+
+Before a milestone may be marked `VERIFIED`, it should satisfy all of the following unless the milestone explicitly says otherwise:
+
+- its stated acceptance criteria pass;
+- targeted tests exist;
+- the full existing test suite passes;
+- affected research outputs have been rerun;
+- unexpected result changes are explained rather than hidden;
+- `CURRENT_STATE.md` has been updated;
+- a new entry has been appended to `IMPLEMENTATION_HISTORY.md`;
+- no future milestone has been implemented opportunistically.
+
+## Scope rule
+
+One milestone should normally represent **one conceptual change**.
+
+If implementation reveals a second major conceptual problem, document it and either:
+
+- add a future milestone, or
+- mark the current milestone `BLOCKED`.
+
+Do not silently absorb multiple projects into one milestone.
+
+---
+
+# Phase 0 — Trustworthy foundations
+
+The project already contains substantial historical research. Before building live features on top of it, make the core assumptions auditable and reproducible.
+
+---
+
+## M0.0 — Project memory and agent-governance infrastructure
+
+**Status:** `IN PROGRESS`
+
+### Goal
+
+Make the repository itself the persistent context shared between short Codex sessions.
+
+### Why
+
+Long agent sessions create context loss, scope drift, repeated reasoning, and accidental contradictions. The repo should preserve high-level decisions and verified state independently of any chat.
+
+### Deliverables
+
+- `ROADMAP.md`
+- `CURRENT_STATE.md`
+- `IMPLEMENTATION_HISTORY.md`
+- `AGENTS.md`
+
+### Acceptance criteria
+
+- [ ] All four files live at repository root.
+- [ ] Their responsibilities are clearly separated.
+- [ ] `CURRENT_STATE.md` is concise enough to reread every session.
+- [ ] `IMPLEMENTATION_HISTORY.md` is append-only and records reasoning, not diffs.
+- [ ] `AGENTS.md` requires one-milestone-at-a-time execution.
+- [ ] Builder and verifier roles are defined.
+- [ ] No research or production code behavior changes as part of M0.0.
+- [ ] A fresh Codex session can explain the current project state after reading these files and the relevant source files.
+
+### Explicit non-goals
+
+- Do not fix transaction costs.
+- Do not modify backtests.
+- Do not build live DART polling.
+- Do not redesign ML.
+- Do not rewrite the README yet.
+
+---
+
+## M0.1 — Baseline research snapshots and verification harness
+
+**Status:** `NOT STARTED`
+
+### Goal
+
+Capture the current research state before making methodological changes.
+
+### Why
+
+Future corrections are expected to change numbers. We need to distinguish legitimate scientific changes from accidental regressions.
+
+### Deliverables
+
+A small, deterministic set of machine-readable baseline outputs for the current implementation, for example:
+
+- cross-category summary;
+- buyback realistic / intraday summary;
+- shareholder-change summary;
+- learning-system buyback summary.
+
+Prefer a structure such as:
+
+```text
+artifacts/
+  baselines/
+    pre_revision/
+      cross_category_summary.json
+      buyback_intraday_summary.json
+      learner_buyback_summary.json
+      shareholder_change_summary.json
+```
+
+Add a lightweight command such as:
+
+```bash
+python -m scripts.verify_research_state
+```
+
+or equivalent.
+
+### Acceptance criteria
+
+- [ ] Baseline artifacts are generated by code, not hand-edited.
+- [ ] Inputs and generation commands are documented.
+- [ ] Randomness is deterministic where applicable.
+- [ ] Verification checks internal consistency, not equality to future old results.
+- [ ] The baseline makes before/after methodological changes easy to compare.
+- [ ] Full tests pass.
+- [ ] No research methodology is changed yet.
+
+### Explicit non-goals
+
+- No attempt to improve results.
+- No benchmark-adjusted returns yet.
+- No tax correction yet.
+
+---
+
+## M0.2 — Historically correct transaction-cost model
+
+**Status:** `NOT STARTED`
+
+### Goal
+
+Replace the single historical Korean-equity tax assumption with an explicit date-aware and market-aware cost model.
+
+### Why
+
+The sample spans multiple tax regimes, while some conclusions involve differences measured in only a few to tens of basis points.
+
+### Requirements
+
+The model should explicitly distinguish:
+
+- commission per side;
+- VAT on commission;
+- transaction tax;
+- slippage per side;
+- buy date;
+- sell date;
+- market.
+
+Historical tax schedules must be verified from authoritative sources before being encoded.
+
+### Acceptance criteria
+
+- [ ] Cost API requires sufficient information to select the correct historical tax regime.
+- [ ] Tax boundaries are covered by tests.
+- [ ] KOSPI/KOSDAQ differences, if any, are represented correctly.
+- [ ] Slippage semantics are unambiguous and tested.
+- [ ] Research paths no longer silently apply one constant rate to every year.
+- [ ] Important analyses are regenerated.
+- [ ] Before/after output differences are recorded.
+- [ ] No parameter tuning is performed to recover previous conclusions.
+
+### Explicit non-goals
+
+- Do not add benchmark-adjusted returns.
+- Do not modify event classification.
+- Do not change the learner except where necessary to consume corrected costs.
+
+---
+
+## M0.3 — Benchmark-adjusted event returns
+
+**Status:** `NOT STARTED`
+
+### Goal
+
+Add abnormal-return analysis so market-wide moves are not incorrectly attributed to disclosure events.
+
+### Minimum design
+
+At minimum:
+
+```text
+KOSPI stock  -> KOSPI benchmark
+KOSDAQ stock -> KOSDAQ benchmark
+
+abnormal_return = stock_return - benchmark_return
+```
+
+Benchmark return must cover the same actual trading dates as the stock event window.
+
+### Acceptance criteria
+
+- [ ] Benchmark source and methodology are documented.
+- [ ] Benchmark alignment is explicit and tested.
+- [ ] Missing benchmark data fails or becomes missing; it never silently becomes zero.
+- [ ] Headline analyses report both raw and abnormal returns where appropriate.
+- [ ] Historical-context APIs can eventually expose abnormal returns.
+- [ ] Affected research outputs are regenerated and compared to baseline.
+- [ ] No look-ahead is introduced.
+
+### Explicit non-goals
+
+- Do not add sector matching unless basic benchmark adjustment is verified first.
+- Do not search for a benchmark that makes the strategy look stronger.
+
+---
+
+## M0.4 — Corporate-action / price-adjustment audit
+
+**Status:** `NOT STARTED`
+
+### Goal
+
+Make adjusted-versus-unadjusted OHLCV behavior explicit and defensible.
+
+### Why
+
+The project studies corporate actions such as rights offerings and bonus issues. Implicit vendor adjustments can manufacture, remove, or distort the price discontinuity being studied.
+
+### Acceptance criteria
+
+- [ ] Current `pykrx` adjustment behavior is verified rather than assumed.
+- [ ] Every relevant market-data call sets adjustment behavior explicitly.
+- [ ] The methodology documents the rationale.
+- [ ] Corporate-action-sensitive categories are audited.
+- [ ] Regression tests cover representative cases when possible.
+- [ ] Result changes are recorded.
+
+### Explicit non-goals
+
+- No new strategies.
+- No live execution.
+
+---
+
+## M0.5 — Research-inference hardening
+
+**Status:** `NOT STARTED`
+
+### Goal
+
+Add defensible uncertainty estimates and make research degrees of freedom explicit.
+
+### Scope
+
+Start small:
+
+- issuer-clustered bootstrap or another transparent dependence-aware confidence interval;
+- tail sensitivity for headline findings;
+- explicit distinction between pre-specified, exploratory, and confirmatory hypotheses.
+
+Add formal multiple-testing correction only where methodologically appropriate.
+
+### Acceptance criteria
+
+- [ ] Headline effect estimates can report uncertainty.
+- [ ] Buyback timing includes tail sensitivity.
+- [ ] Repeated issuers are not blindly treated as IID.
+- [ ] Documentation discusses data snooping.
+- [ ] No exploratory subgroup is promoted to a strategy without being labeled exploratory.
+
+### Explicit non-goals
+
+- No complex statistical machinery solely for appearance.
+- No new ML models.
+
+---
+
+# Phase 1 — Make the system useful in real time
+
+The objective of this phase is to transform the project from a historical research repository into a live disclosure-intelligence system.
+
+---
+
+## M1.1 — Canonical economic-event model and normalization
+
+**Status:** `NOT STARTED`
+
+### Goal
+
+Create one shared representation of an economic event used by historical research, live monitoring, forward experiments, and paper execution.
+
+### Why
+
+An original filing, correction, cancellation, amendment, and completion may represent the same underlying economic event. The system should not treat them as unrelated observations by accident.
+
+### Target shape
+
+Conceptually:
+
+```text
+economic_event_id
+event_type
+issuer
+market
+primary_receipt_no
+related_receipt_nos
+original_timestamp
+latest_update_timestamp
+status
+normalized_fields
+source_provenance
+```
+
+### Acceptance criteria
+
+- [ ] Duplication prevalence is measured before overengineering.
+- [ ] Related DART filings can be traced back to originals.
+- [ ] Historical and future live paths use the same normalization logic.
+- [ ] Existing event-study compatibility is preserved or migrated explicitly.
+- [ ] Tests cover amendments / corrections / cancellations.
+
+### Explicit non-goals
+
+- Do not build the live watcher yet.
+- Do not redesign all storage without evidence it is needed.
+
+---
+
+## M1.2 — Incremental live DART watcher
+
+**Status:** `NOT STARTED`
+
+### Goal
+
+Detect newly arriving relevant DART disclosures incrementally and reliably.
+
+### Required behavior
+
+A live loop should be able to:
+
+1. poll or otherwise fetch new filings;
+2. avoid duplicate processing;
+3. persist raw source material;
+4. normalize the event;
+5. hand the event to downstream consumers;
+6. recover safely after interruption.
+
+### Acceptance criteria
+
+- [ ] Idempotent processing.
+- [ ] Resume/restart behavior is tested.
+- [ ] Raw source provenance is preserved.
+- [ ] Historical replay can exercise the same downstream event path.
+- [ ] Polling behavior respects source limits and failure handling.
+- [ ] The watcher does not place trades.
+
+---
+
+## M1.3 — Event significance engine
+
+**Status:** `NOT STARTED`
+
+### Goal
+
+Answer: **“Why does this disclosure matter?”**
+
+### Candidate significance features
+
+Only where supported by reliable data:
+
+- contract value / prior-year revenue;
+- buyback size / shares outstanding or market cap;
+- dilution magnitude;
+- historical percentile among comparable events;
+- unusualness relative to issuer history;
+- timing bucket;
+- liquidity context;
+- recent related events.
+
+### Desired output
+
+A structured explanation, for example:
+
+```text
+Supply contract
+Contract / prior-year revenue: 34%
+Historical percentile: 96th
+Comparable historical events: n=...
+```
+
+### Acceptance criteria
+
+- [ ] Scores are interpretable and deterministic where possible.
+- [ ] Percentiles use clearly defined comparable populations.
+- [ ] Missing fundamentals do not become fabricated zeros.
+- [ ] Output distinguishes measurement from trading recommendation.
+- [ ] Historical replay and live use identical feature logic.
+
+---
+
+## M1.4 — Historical-context query service
+
+**Status:** `NOT STARTED`
+
+### Goal
+
+Given a normalized live event, retrieve defensible historical context.
+
+### Example output
+
+```text
+Comparable sample: n=147
+Mean abnormal T+5: ...
+Median abnormal T+5: ...
+95% CI: ...
+Positive fraction: ...
+Cost-adjusted result: ...
+```
+
+### Acceptance criteria
+
+- [ ] Comparable-event selection is auditable.
+- [ ] Metrics use the verified Phase 0 research machinery.
+- [ ] Query result records dataset cutoff/version.
+- [ ] No future event leaks into historical context during replay.
+- [ ] Output includes uncertainty and sample size.
+
+---
+
+## M1.5 — Human-readable alert and historical replay
+
+**Status:** `NOT STARTED`
+
+### Goal
+
+Produce a genuinely useful event alert and demonstrate it on both live and historical streams.
+
+### Target interface
+
+Potential commands:
+
+```bash
+kdtb watch
+kdtb replay 2026-08-25
+```
+
+### Alert should communicate
+
+- issuer;
+- event;
+- economically important extracted fields;
+- significance;
+- historical context;
+- whether a registered experiment applies;
+- if no experiment applies, say so explicitly.
+
+### Acceptance criteria
+
+- [ ] Alerts are generated from structured state, not arbitrary LLM prose.
+- [ ] Replay uses the same core event pipeline as live mode.
+- [ ] The system can meaningfully say `NO TRADE` / `NO REGISTERED STRATEGY`.
+- [ ] Output is useful without requiring a dashboard.
+
+---
+
+# Phase 2 — Frozen forward experiments
+
+The objective is to stop repeatedly reusing the historical sample as if it were untouched test data.
+
+---
+
+## M2.1 — Versioned experiment specification
+
+**Status:** `NOT STARTED`
+
+### Goal
+
+Define immutable strategy / research experiments before future events are observed.
+
+### Specification should record
+
+- experiment ID/version;
+- creation timestamp;
+- historical cutoff;
+- forward-test start;
+- event definition;
+- features;
+- benchmark;
+- eligibility rules;
+- entry rule;
+- exit rule;
+- costs;
+- exclusions;
+- success/failure criteria.
+
+### Acceptance criteria
+
+- [ ] An experiment can be serialized and hashed.
+- [ ] After activation, mutation creates a new version rather than editing history.
+- [ ] Experiments can be replayed deterministically.
+- [ ] Tests enforce immutability/versioning semantics.
+
+---
+
+## M2.2 — Forward event ledger
+
+**Status:** `NOT STARTED`
+
+### Goal
+
+Record every event considered by every active experiment, including rejected signals.
+
+### Why
+
+Evaluating only trades that occurred creates survivorship and selective-recording risk.
+
+### Acceptance criteria
+
+- [ ] Every eligible decision is logged.
+- [ ] Rejection reason is stored.
+- [ ] Experiment version is stored.
+- [ ] Decision-time inputs are snapshot/versioned.
+- [ ] Records cannot silently be rewritten after outcomes are known.
+
+---
+
+## M2.3 — Prospective outcome evaluator
+
+**Status:** `NOT STARTED`
+
+### Goal
+
+Attach future outcomes to frozen decisions without modifying the original decision record.
+
+### Acceptance criteria
+
+- [ ] Decision and outcome are separate records/layers.
+- [ ] Evaluator uses the experiment's frozen benchmark and cost assumptions.
+- [ ] No future data exists in decision-time features.
+- [ ] Forward results are clearly separated from historical research.
+
+---
+
+## M2.4 — Forward reporting
+
+**Status:** `NOT STARTED`
+
+### Goal
+
+Report historical and true forward results side by side.
+
+### Acceptance criteria
+
+- [ ] Historical and forward samples are never blended without explicit labeling.
+- [ ] Report includes sample size, coverage, rejected signals, and uncertainty.
+- [ ] Lack of forward data is reported honestly rather than filled in.
+
+---
+
+# Phase 3 — Prospective intraday market-data collection
+
+The objective is to resolve the project's most important execution uncertainty using data collected after disclosure events occur.
+
+---
+
+## M3.1 — Live quote / intraday-bar collector
+
+**Status:** `NOT STARTED`
+
+### Goal
+
+Capture market state after selected disclosure events.
+
+### Candidate data
+
+Subject to actual broker/API availability:
+
+- bid;
+- ask;
+- midpoint;
+- spread;
+- trade price;
+- minute bars;
+- volume;
+- event-to-first-observation latency;
+- closing auction / close;
+- next open / next close.
+
+### Acceptance criteria
+
+- [ ] Source/API capabilities are verified before implementation.
+- [ ] Exact event and market timestamps are persisted.
+- [ ] Data gaps are explicit.
+- [ ] Collector resumes safely.
+- [ ] No unavailable historical intraday data is invented.
+
+---
+
+## M3.2 — Event-relative market snapshot dataset
+
+**Status:** `NOT STARTED`
+
+### Goal
+
+Convert raw live market observations into an auditable event-relative dataset.
+
+### Acceptance criteria
+
+- [ ] Every observation traces to event ID and source timestamp.
+- [ ] Latency is measurable.
+- [ ] Data can test historical fill assumptions.
+- [ ] Dataset schema is documented and versioned.
+
+---
+
+## M3.3 — Buyback execution-feasibility study
+
+**Status:** `NOT STARTED`
+
+### Goal
+
+Prospectively test the current unresolved buyback timing hypothesis.
+
+### Questions
+
+- Is the historical `t0_close` proxy attainable after disclosure?
+- What spread/slippage occurs?
+- How does execution vary by KOSPI/KOSDAQ, price, and liquidity?
+- Does the timing effect survive observed fills?
+
+### Acceptance criteria
+
+- [ ] Rules are frozen before evaluating outcomes.
+- [ ] Actual observed execution proxies replace assumed fills where available.
+- [ ] Results report misses, partial coverage, latency, and failures.
+- [ ] Negative findings are preserved.
+
+---
+
+# Phase 4 — Paper execution
+
+---
+
+## M4.1 — Paper order / fill model
+
+**Status:** `NOT STARTED`
+
+### Goal
+
+Represent orders, fills, partial fills, cancellations, positions, and costs without real-money execution.
+
+### Acceptance criteria
+
+- [ ] Order state machine is explicit.
+- [ ] Fill assumptions are configurable and conservative.
+- [ ] Spread/slippage/latency can be modeled.
+- [ ] Historical replay and live paper mode share execution logic.
+- [ ] No real broker orders are possible from this milestone.
+
+---
+
+## M4.2 — Position and portfolio constraints
+
+**Status:** `NOT STARTED`
+
+### Goal
+
+Make capacity constraints first-class.
+
+### Candidate constraints
+
+- max open positions;
+- max notional;
+- max participation rate;
+- per-issuer exposure;
+- liquidity floor;
+- conflicting-event exclusions.
+
+### Acceptance criteria
+
+- [ ] Constraints produce deterministic reason codes.
+- [ ] Rejected orders remain visible in the forward ledger.
+- [ ] Paper results report capacity-adjusted rather than theoretical signal results.
+
+---
+
+## M4.3 — Paper PnL attribution
+
+**Status:** `NOT STARTED`
+
+### Goal
+
+Explain where paper performance came from.
+
+### Possible attribution
+
+- event effect;
+- benchmark movement;
+- entry timing;
+- slippage;
+- fees/tax;
+- tail winners;
+- skipped signals / capacity.
+
+### Acceptance criteria
+
+- [ ] Portfolio results can be decomposed.
+- [ ] Model selection is not confused with regime exposure.
+- [ ] No annualized performance statistic is reported without a defensible portfolio time series.
+
+---
+
+# Phase 5 — Portfolio / watchlist risk intelligence
+
+---
+
+## M5.1 — Watchlist ingestion
+
+**Status:** `NOT STARTED`
+
+### Goal
+
+Allow a user to maintain a list of Korean equities of interest.
+
+### Acceptance criteria
+
+- [ ] Watchlist is independent of trading strategy logic.
+- [ ] Live events can be filtered/prioritized against it.
+- [ ] No brokerage account integration is required.
+
+---
+
+## M5.2 — Event-risk alerts
+
+**Status:** `NOT STARTED`
+
+### Goal
+
+Use robust negative-event evidence as a warning system rather than forcing short trades.
+
+### Example
+
+```text
+Largest shareholder change detected.
+Comparable historical events show negative abnormal returns.
+Flag new long entries for review.
+```
+
+### Acceptance criteria
+
+- [ ] Risk alerts cite the empirical basis and uncertainty.
+- [ ] Alert does not claim causality or guaranteed loss.
+- [ ] Historical negative signals must pass the verified research pipeline.
+
+---
+
+# Phase 6 — Productization
+
+---
+
+## M6.1 — Stable CLI
+
+**Status:** `NOT STARTED`
+
+### Goal
+
+Expose core workflows through a coherent command-line interface.
+
+Potential shape:
+
+```bash
+kdtb watch
+kdtb event <id>
+kdtb research <category>
+kdtb experiment list
+kdtb experiment status <id>
+kdtb paper
+kdtb replay <date>
+```
+
+### Acceptance criteria
+
+- [ ] CLI is a thin layer over tested domain APIs.
+- [ ] Research/live/replay logic is not duplicated in CLI commands.
+- [ ] Output can be emitted in both human-readable and machine-readable form.
+
+---
+
+## M6.2 — Optional lightweight dashboard
+
+**Status:** `NOT STARTED`
+
+### Goal
+
+Visualize live events, significance, experiments, paper positions, and forward outcomes.
+
+### Constraint
+
+Only build this after the underlying APIs are stable.
+
+### Acceptance criteria
+
+- [ ] Dashboard contains no unique research/business logic.
+- [ ] It can be removed without affecting the system.
+
+---
+
+# Recurring architecture / research audits
+
+After approximately every 4–5 verified implementation milestones, schedule a fresh audit-only Codex session.
+
+The audit should:
+
+- read the repo as a new engineer;
+- compare implementation against this roadmap;
+- check `CURRENT_STATE.md` against actual code;
+- inspect recent `IMPLEMENTATION_HISTORY.md` entries;
+- identify duplicated concepts;
+- identify stale documentation;
+- identify research claims no longer supported;
+- identify technical debt;
+- identify interfaces that are diverging between historical, live, replay, and paper paths.
+
+**The audit should not modify code.**
+
+Any recommended changes become explicit future milestones.
+
+---
+
+# Architectural principles that apply to every phase
+
+## 1. One event core
+
+Historical research, live monitoring, replay, forward testing, and paper trading should converge on the same:
+
+- event normalization;
+- feature extraction;
+- provenance model.
+
+Avoid separate `historical_*` and `live_*` implementations of the same concept.
+
+## 2. Decision-time data stays decision-time
+
+Anything used to make a live or replayed decision must have been available at that moment.
+
+Future outcomes live in separate data structures.
+
+## 3. Raw source data is immutable
+
+Derived features may be regenerated.
+
+Original DART/API payloads should remain traceable and unchanged.
+
+## 4. Negative results are first-class results
+
+A strategy that fails validation should remain documented as failed.
+
+Do not delete failed research merely because it looks unattractive on a resume.
+
+## 5. Research code and user-facing features share foundations
+
+The live system should consume validated research primitives, not reimplement statistics ad hoc.
+
+## 6. Prefer boring, testable machinery
+
+Use simple models and explicit assumptions unless complexity is justified by data.
+
+No RL, deep learning, or elaborate distributed systems solely for appearance.
+
+## 7. No real-money execution until explicitly authorized as a future milestone
+
+The current destination is a high-quality live intelligence, forward-testing, and paper-execution platform.
+
+Real broker order submission is outside the current roadmap.
